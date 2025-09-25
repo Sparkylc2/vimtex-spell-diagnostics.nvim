@@ -1,0 +1,2 @@
+# vimtex-spell-diagnostics
+
