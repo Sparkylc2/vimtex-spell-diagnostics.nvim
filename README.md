@@ -1,5 +1,5 @@
 # vimtex-spell-diagnostics
-Show VimTeX spell checking errors as Neovim diagnostics.
+Show VimTeX spelling errors as Neovim diagnostics.
 
 (I got annoyed with other alternatives flagging commands as mispellings)
 
