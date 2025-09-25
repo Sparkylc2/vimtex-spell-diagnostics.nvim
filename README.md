@@ -1,6 +1,10 @@
 # vimtex-spell-diagnostics
-Show VimTeX spell checking errors as Neovim diagnostics. 
+Show VimTeX spell checking errors as Neovim diagnostics.
+
 (I got annoyed with other alternatives flagging commands as mispellings)
+
+This plugin is quite new and I will continue to cover more edgecases as I discover them.
+Any contributions are appreciated.
 
 
 
