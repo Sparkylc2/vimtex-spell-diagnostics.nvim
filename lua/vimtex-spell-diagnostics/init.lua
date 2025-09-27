@@ -29,10 +29,26 @@ local function should_spellcheck_position(lnum, col)
 		return true -- plain text
 	end
 
-	for _, syn in ipairs(synstack) do
+	-- get the innermost syntax group
+	local innermost = synstack[#synstack]
+	local innermost_name = vim.fn.synIDattr(innermost, "name")
+
+	-- skip math regions entirely
+	if innermost_name:match("^texMath") or innermost_name:match("^texDisplayMath") then
+		return false
+	end
+
+	-- skip comments
+	if innermost_name:match("^texComment") then
+		return false
+	end
+
+	-- check if we're in a spellable region or text content
+	for i = #synstack, 1, -1 do
+		local syn = synstack[i]
 		local synname = vim.fn.synIDattr(syn, "name")
 
-		-- explicitly check for spellable regions
+		-- explicitly spellable regions
 		if
 			vim.fn.synIDattr(syn, "spell") == "1"
 			or synname:match("^texPartArgTitle")
@@ -42,23 +58,42 @@ local function should_spellcheck_position(lnum, col)
 			or synname:match("^texAuthorTitle")
 			or synname:match("^texDocType")
 			or synname:match("^texDocTypeArgs")
+			or synname:match("^texArg") -- command arguments
 		then
 			return true
 		end
 
-		-- skip cmd and math regions
+		-- skip only specific non-text elements
 		if
-			synname:match("^texCmd")
-			or synname:match("^texMath")
-			or synname:match("^texStatement")
+			synname:match("^texStatement")
 			or synname:match("^texBeginEnd")
 			or synname:match("^texDelimiter")
 			or synname:match("^texInputFile")
 			or synname:match("^texSpecialChar")
-			or synname:match("^texComment")
 		then
 			return false
 		end
+	end
+
+	-- if we're inside a command but not in a skippable region, check it
+	-- this handles text inside \flashcard{...}{...} etc
+	return true
+end
+
+-- check if position is at a latex command name (not its arguments)
+local function is_command_name(line, col)
+	-- check if preceded by backslash
+	if col > 1 and line:sub(col - 1, col - 1) == "\\" then
+		return true
+	end
+
+	-- check if we're part of a command name (after the backslash)
+	local start = col
+	while start > 1 and line:sub(start - 1, start - 1):match("[%a@]") do
+		start = start - 1
+	end
+	if start > 1 and line:sub(start - 1, start - 1) == "\\" then
+		return true
 	end
 
 	return false
@@ -76,7 +111,7 @@ local function collect_spelling_issues(bufnr)
 	local diags = {}
 	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
-	-- iterate ove all the linnes and words
+	-- iterate over all the lines and words
 	for lnum, line in ipairs(lines) do
 		for col = 1, #line do
 			local char = line:sub(col, col)
@@ -84,8 +119,8 @@ local function collect_spelling_issues(bufnr)
 			-- only check at word boundaries
 			if col == 1 or not line:sub(col - 1, col - 1):match("[%a']") then
 				if char:match("[%a]") then
-					-- skip latex commands (words preceded by \)
-					if col > 1 and line:sub(col - 1, col - 1) == "\\" then
+					-- skip latex command names (but not their arguments)
+					if is_command_name(line, col) then
 						goto continue
 					end
 
@@ -101,7 +136,12 @@ local function collect_spelling_issues(bufnr)
 						local res = vim.fn.spellbadword(word)
 						local bad, kind = res[1], res[2]
 
-						if bad ~= "" then
+						if bad ~= "" and bad == word then -- ensure exact match
+							-- default to "bad" if kind is empty
+							if kind == "" then
+								kind = "bad"
+							end
+
 							table.insert(diags, {
 								lnum = lnum - 1,
 								col = col - 1,
