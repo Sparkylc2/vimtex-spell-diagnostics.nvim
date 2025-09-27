@@ -13,7 +13,6 @@ local default_config = {
 	check_on = {
 		"BufReadPost",
 		"BufWritePost",
-		"TextChanged",
 		"InsertLeave",
 	},
 }
