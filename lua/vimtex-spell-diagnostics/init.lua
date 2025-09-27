@@ -136,18 +136,29 @@ local function collect_spelling_issues(bufnr)
 						local res = vim.fn.spellbadword(word)
 						local bad, kind = res[1], res[2]
 
-						if bad ~= "" and bad == word then -- ensure exact match
-							-- default to "bad" if kind is empty
-							if kind == "" then
+						if bad ~= "" and bad == word then
+							-- default to bad
+							if kind == "" or kind == nil then
 								kind = "bad"
 							end
 
+							-- map severity
+							local sev = config.severity.bad
+							if kind == "bad" then
+								sev = config.severity.bad or vim.diagnostic.severity.WARN
+							elseif kind == "local" then
+								sev = config.severity.loc or vim.diagnostic.severity.INFO
+							elseif kind == "caps" then
+								sev = config.severity.caps or vim.diagnostic.severity.WARN
+							elseif kind == "rare" then
+								sev = config.severity.rare or vim.diagnostic.severity.HINT
+							end
 							table.insert(diags, {
 								lnum = lnum - 1,
 								col = col - 1,
 								end_lnum = lnum - 1,
 								end_col = word_end - 1,
-								severity = config.severity[kind] or config.severity.bad,
+								severity = sev,
 								message = string.format("Spelling: %s (%s)", bad, kind),
 								source = "vimtex-spell",
 							})
